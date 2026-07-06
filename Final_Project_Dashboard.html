@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enterprise Project Dashboard</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#0b1220; --border:#334155;
+    --text:#e2e8f0; --muted:#94a3b8; --blue:#3b82f6; --indigo:#6366f1;
+    --emerald:#10b981; --amber:#f59e0b; --rose:#f43f5e; --gray:#64748b;
+    --label-w:260px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+  .dashboard{max-width:1700px;margin:0 auto}
+
+  /* Top nav tiles */
+  .tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;margin-bottom:18px}
+  .tile{border:1px solid var(--border);background:var(--panel);border-radius:14px;padding:16px;text-align:left;cursor:pointer;color:var(--text);transition:.2s ease;min-height:92px}
+  .tile:hover{transform:translateY(-1px)}
+  .tile.active{outline:2px solid var(--indigo);background:rgba(99,102,241,0.1)}
+  .tile .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .tile .value{font-size:26px;font-weight:700;margin-top:8px}
+  .analytics{border-bottom:4px solid var(--indigo)}
+  .phase{border-bottom:4px solid var(--emerald)}
+  .milestone{border-bottom:4px solid var(--amber)}
+  .task{border-bottom:4px solid var(--blue)}
+  .risk{border-bottom:4px solid var(--rose)}
+
+  .content{display:none}
+  .content.active{display:block}
+  .title{margin:0 0 6px;font-size:24px}
+  .subtitle{margin:0 0 18px;color:var(--muted);line-height:1.4}
+  .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .pill{padding:6px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:12px}
+  .pill.scope-active{border-color:var(--indigo);color:var(--text);background:rgba(99,102,241,.12);font-weight:600}
+  .pill .crumb-item, .pill .crumb-sep{font-size:12px}
+  .pill .crumb-item.current{color:var(--indigo)}
+  @keyframes scopePulse{0%{opacity:.45}100%{opacity:1}}
+  .scope-pulse{animation:scopePulse .35s ease}
+
+  /* KPI grid -- 5 cards max, one glance */
+  .grid-5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:18px;min-height:118px;box-shadow:0 10px 22px rgba(0,0,0,.12)}
+  .kpi{font-size:28px;font-weight:700;margin:10px 0 6px}
+  .muted{color:var(--muted);font-size:13px}
+  .emerald{color:var(--emerald)} .amber{color:var(--amber)} .rose{color:var(--rose)} .blue{color:var(--blue)} .indigo{color:var(--indigo)}
+
+  .section-block{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px;margin-top:18px;box-shadow:0 14px 30px rgba(0,0,0,.12)}
+
+  /* Exception summary */
+  .dashboard-table{width:100%;border-collapse:collapse;background:var(--panel2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-top:8px}
+  .dashboard-table th{background:#111827;color:var(--muted);text-align:left;padding:12px;font-size:13px;text-transform:uppercase}
+  .dashboard-table td{padding:12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+  .dashboard-table tr:last-child td{border-bottom:none}
+  .link-click{color:var(--rose);text-decoration:underline;cursor:pointer;font-weight:700}
+  .link-click:hover{color:#ff6b8b}
+  .link-click-soon{color:var(--amber);text-decoration:underline;cursor:pointer;font-weight:700}
+  .link-click-soon:hover{color:#ffc457}
+  .num-zero{color:var(--muted)}
+
+  .badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .badge.green{background:rgba(16,185,129,.14);color:var(--emerald)}
+  .badge.amber{background:rgba(245,158,11,.14);color:var(--amber)}
+  .badge.red{background:rgba(244,63,94,.14);color:var(--rose)}
+  .badge.blue{background:rgba(59,130,246,.14);color:#60a5fa}
+  .badge.gray{background:rgba(100,116,139,.14);color:var(--gray)}
+
+  .bar-row{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .bar-label{width:100px;color:var(--muted);font-size:12px}
+  .bar-track{flex:1;height:12px;background:#111827;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+  .bar-fill{height:100%;background:var(--blue)}
+  .mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .mini-grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mini-grid.cols-1{grid-template-columns:1fr;gap:18px}
+  .mini-card{background:var(--panel2);border:1px solid var(--border);border-radius:14px;padding:14px;min-height:130px;overflow-x:auto}
+  .mini-card table.dashboard-table{min-width:620px}
+  .mini-title{font-size:14px;font-weight:700;margin:0 0 10px}
+  .mini-note{font-size:11px;color:var(--muted);margin-top:8px}
+
+  /* Accordions -- Tier 3, collapsed by default so the page doesn't feel crowded */
+  details.accordion{background:var(--panel);border:1px solid var(--border);border-radius:18px;margin-top:18px;overflow:hidden}
+  details.accordion > summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  details.accordion > summary::-webkit-details-marker{display:none}
+  .accordion-heading{font-size:17px;font-weight:700;color:var(--text)}
+  .accordion-sub{font-size:13px;color:var(--muted);font-weight:400;margin-top:3px}
+  .chev{color:var(--muted);transition:transform .2s ease;font-size:13px;flex:0 0 auto}
+  details.accordion[open] > summary .chev{transform:rotate(90deg)}
+  .accordion-body{padding:0 20px 20px}
+
+  /* Toolbars, inputs, chips */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .input,.select,.btn{background:#111827;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 12px;font-size:13px}
+  .btn{cursor:pointer}
+  .btn:hover{filter:brightness(1.15)}
+  .btn.small{padding:6px 12px;font-size:12px;border-radius:8px}
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+  .chip{background:#111827;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .chip:hover{color:var(--text)}
+  .chip.active{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:7px 10px;border:1px solid var(--border);border-radius:999px;background:#0d1526}
+  .switch input{accent-color:var(--indigo)}
+  .gantt-zoom{display:flex;gap:4px;background:#0d1526;border:1px solid var(--border);border-radius:8px;padding:3px}
+  .zoom-btn{background:transparent;border:none;color:var(--muted);padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
+  .zoom-btn:hover{color:var(--text)}
+  .zoom-btn.active{background:var(--indigo);color:#fff}
+  .export-menu{position:relative}
+  .export-dropdown{position:absolute;right:0;top:42px;z-index:12;display:none;min-width:140px;background:#0b1220;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 18px 30px rgba(0,0,0,.35)}
+  .export-dropdown button{width:100%;border:0;background:transparent;color:var(--text);padding:10px 12px;text-align:left;cursor:pointer}
+  .export-dropdown button:hover{background:#111827}
+
+  /* Gantt + side detail panel layout */
+  .layout{display:grid;grid-template-columns:1.35fr .65fr;gap:0}
+  .gantt-card{padding:0;overflow:hidden;border-right:1px solid var(--border)}
+  .side{display:flex;flex-direction:column;gap:0}
+  .detail{background:var(--panel2);padding:18px;height:100%}
+  .detail h3{margin:0 0 4px;font-size:16px}
+  .detail .crumbs{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+  .crumb-item{cursor:pointer;color:var(--muted)}
+  .crumb-item:hover{color:var(--text);text-decoration:underline}
+  .crumb-item.current{color:var(--text);font-weight:700;cursor:default;text-decoration:none}
+  .crumb-sep{color:var(--muted);margin:0 2px}
+  .detail .line{display:flex;justify-content:space-between;gap:10px;margin:8px 0;color:var(--text);font-size:13px}
+  .detail .line span{color:var(--muted)}
+  .detail .line strong{text-align:right;max-width:60%;font-weight:600}
+  .detail-section{border-bottom:1px solid var(--border);padding:8px 0}
+  .detail-section:last-of-type{border-bottom:none}
+  .detail-section > summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
+  .detail-section > summary::-webkit-details-marker{display:none}
+  .detail-section .chev{transition:transform .2s ease;font-size:10px;color:var(--muted)}
+  .detail-section[open] > summary .chev{transform:rotate(90deg)}
+  .detail-section .section-body{padding-top:4px}
+
+  .gantt-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;background:var(--panel)}
+  .gantt-toolbar-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+  .gantt-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+  .gantt-scroll{overflow:auto;max-height:640px}
+  .gantt-inner{position:relative}
+  .gantt-header{position:sticky;top:0;z-index:6;display:flex}
+  .gantt-header-label{position:sticky;left:0;z-index:7;width:var(--label-w);flex:0 0 var(--label-w);background:var(--panel2);border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .gantt-header-ruler{position:relative;flex:1 1 auto;background:var(--panel2);border-bottom:1px solid var(--border)}
+  .gantt-months{display:flex;height:28px}
+  .gantt-month{border-right:1px solid #24324a;display:flex;align-items:center;padding-left:8px;font-size:12px;font-weight:700;color:var(--text);box-sizing:border-box;white-space:nowrap;overflow:hidden}
+  .gantt-weeks{position:relative;height:20px;border-top:1px solid #24324a}
+  .gantt-week-tick{position:absolute;top:0;bottom:0;border-left:1px solid #1c283f}
+  .gantt-week-tick span{position:absolute;top:3px;left:4px;font-size:9.5px;color:var(--muted);white-space:nowrap}
+  .gantt-body{position:relative}
+  .gantt-overlay{position:absolute;top:0;left:var(--label-w);right:0;bottom:0;pointer-events:none;z-index:1}
+  .gantt-deps{position:absolute;inset:0;overflow:visible}
+  .gantt-conn{fill:none;stroke:#5b6b8c;stroke-width:1.5;transition:stroke .2s ease, stroke-width .2s ease, opacity .2s ease}
+  .gantt-conn.critical{stroke:var(--rose);stroke-width:2.5;opacity:.95}
+  .gantt-conn.blocked{stroke:var(--amber);stroke-width:2.5;stroke-dasharray:5 3;opacity:.95}
+  .gantt-conn.focused{stroke:var(--indigo);stroke-width:3;opacity:1;filter:drop-shadow(0 0 3px rgba(99,102,241,.55))}
+  .gantt-conn.focused.critical{stroke:var(--rose);filter:drop-shadow(0 0 3px rgba(244,63,94,.55))}
+  .gantt-conn.focused.blocked{stroke:var(--amber);filter:drop-shadow(0 0 3px rgba(245,158,11,.5))}
+  .gantt-conn.faded-conn{opacity:.1}
+  .gantt-today{position:absolute;top:0;width:0;border-left:2px solid var(--rose);z-index:2;display:none}
+  .gantt-today::before{content:'TODAY';position:absolute;top:0;left:5px;font-size:9px;font-weight:800;color:var(--rose);letter-spacing:.05em;background:rgba(11,18,32,.9);padding:1px 5px;border-radius:3px}
+  .gantt-row-wrap{position:relative}
+  .gantt-row-wrap.collapsed > .gantt-children{display:none}
+  .gantt-row-wrap.hidden-filtered{display:none}
+  .gantt-row{display:flex;align-items:stretch;border-bottom:1px solid #1b2740;transition:background .2s ease;cursor:pointer}
+  .gantt-row:hover{background:rgba(255,255,255,.03)}
+  .gantt-row.selected{background:rgba(99,102,241,.16)}
+  .gantt-row.selected .gantt-outline{box-shadow:0 0 0 2px var(--indigo),0 0 10px rgba(99,102,241,.5) !important;border-width:2px}
+  .gantt-row.dim{opacity:.18;filter:grayscale(.6)}
+  .gantt-row.focus-path{background:rgba(99,102,241,.1)}
+  .gantt-row{transition:opacity .2s ease, background .2s ease}
+  .gantt-row-label{position:sticky;left:0;z-index:3;width:var(--label-w);flex:0 0 var(--label-w);background:var(--panel2);border-right:1px solid var(--border);display:flex;align-items:center;gap:7px;padding:0 10px;overflow:hidden}
+  .gantt-toggle{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:9px;border-radius:4px;user-select:none;flex:0 0 auto}
+  .gantt-toggle:hover{background:rgba(255,255,255,.08);color:var(--text)}
+  .gantt-toggle.leaf{visibility:hidden}
+  .gantt-type-chip{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+  .gantt-row-name{font-size:12.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;line-height:1.3}
+  .gantt-row-name small{display:block;color:var(--muted);font-weight:400;font-size:10px;letter-spacing:.03em}
+  .gantt-row-track{position:relative;flex:1 1 auto}
+  .gantt-bar-zone{position:relative;height:100%;width:100%}
+  .gantt-baseline{position:absolute;top:50%;transform:translateY(-50%);height:2px;background-image:repeating-linear-gradient(90deg,var(--muted) 0 6px,transparent 6px 10px);opacity:.55;border-radius:2px}
+  .gantt-outline{position:absolute;top:50%;transform:translateY(-50%);height:14px;border-radius:6px;border:1.5px solid;box-sizing:border-box;overflow:hidden;cursor:pointer}
+  .gantt-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px 0 0 5px}
+  .gantt-fill.full{border-radius:5px}
+  .gantt-fill-remain{position:absolute;top:0;bottom:0;right:0;opacity:.22;border-radius:0 5px 5px 0;background-image:repeating-linear-gradient(45deg,currentColor 0 4px,transparent 4px 8px)}
+  .gantt-pct{position:absolute;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;pointer-events:none}
+  .bar-project{color:var(--indigo);border-color:var(--indigo);background:var(--indigo)}
+  .bar-phase{color:var(--emerald);border-color:var(--emerald);background:var(--emerald)}
+  .bar-milestone{color:var(--amber);border-color:var(--amber);background:var(--amber)}
+  .bar-task{color:var(--blue);border-color:var(--blue);background:var(--blue)}
+  .bar-risk{color:var(--rose);border-color:var(--rose);background:var(--rose)}
+  .gantt-outline.overdue{box-shadow:0 0 0 3px rgba(244,63,94,.28)}
+  .gantt-outline.soon{box-shadow:0 0 0 3px rgba(245,158,11,.2)}
+  .gantt-outline.healthy{box-shadow:0 0 0 1px rgba(16,185,129,.18)}
+
+  .tooltip{position:fixed;z-index:50;pointer-events:none;background:#0b1220;border:1px solid var(--border);color:var(--text);border-radius:12px;font-size:12px;max-width:300px;display:none;box-shadow:0 18px 30px rgba(0,0,0,.4);overflow:hidden}
+  .tt-head{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px}
+  .tt-sub{font-size:10px;color:var(--muted);font-weight:500;margin-top:2px;text-transform:uppercase;letter-spacing:.05em}
+  .tt-body{padding:8px 12px;display:grid;grid-template-columns:auto auto;gap:5px 18px}
+  .tt-k{color:var(--muted);font-size:11px}
+  .tt-v{font-size:11px;font-weight:600;text-align:right;white-space:nowrap}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:#111827;border:1px solid var(--border);color:var(--text);padding:12px 18px;border-radius:10px;font-size:13px;box-shadow:0 18px 30px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);transition:.25s ease;pointer-events:none;z-index:80}
+  .toast.show{opacity:1;transform:translateY(0)}
+
+  @media (max-width:1200px){
+    .tiles,.grid-5,.mini-grid,.mini-grid.cols-2{grid-template-columns:1fr}
+    .layout{grid-template-columns:1fr}
+    .gantt-card{border-right:none}
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <div class="tiles">
+    <button class="tile analytics active" data-tab="analytics"><div class="label">Analytics</div><div class="value">Overview</div></button>
+    <button class="tile phase" data-tab="phase"><div class="label">Phases</div><div class="value" id="tileCount-phase">-</div></button>
+    <button class="tile milestone" data-tab="milestone"><div class="label">Milestones</div><div class="value" id="tileCount-milestone">-</div></button>
+    <button class="tile task" data-tab="task"><div class="label">Tasks</div><div class="value" id="tileCount-task">-</div></button>
+    <button class="tile risk" data-tab="risk"><div class="label">Risks</div><div class="value" id="tileCount-risk">-</div></button>
+  </div>
+
+  <!-- ============ ANALYTICS (default view) ============ -->
+  <section class="content active" id="analytics-section">
+    <div class="section-head">
+      <div>
+        <h2 class="title">Portfolio Analytics Overview</h2>
+        <p class="subtitle">Portfolio-wide view of schedule health, priority exposure, and completion status.</p>
+      </div>
+      <div class="pill" id="scopePill"><span id="summaryCrumbs">Portfolio-wide</span></div>
+    </div>
+
+    <!-- Tier 1: glance zone -->
+    <div class="grid-5">
+      <div class="card"><div class="muted">Overall Progress</div><div class="kpi emerald" id="kpiProjectProgress">-</div><div class="muted">Rollup of all task completion</div></div>
+      <div class="card"><div class="muted">Project Health</div><div class="kpi" id="kpiHealth">-</div><div class="muted" id="kpiHealthHint">-</div></div>
+      <div class="card"><div class="muted">Forecast Completion</div><div class="kpi amber" id="kpiForecast">-</div><div class="muted" id="kpiForecastHint">-</div></div>
+      <div class="card"><div class="muted">Open High-Priority Risks</div><div class="kpi rose" id="kpiHighRisk">-</div><div class="muted">Unresolved, High severity</div></div>
+      <div class="card"><div class="muted">Blocked Tasks</div><div class="kpi rose" id="kpiBlockedTasks">-</div><div class="muted">Waiting on external action</div></div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-head"><div><h2 class="title" style="font-size:18px">Exception Summary</h2><p class="subtitle" style="margin:0">Where to focus first — click any count to drill in. <span id="exceptionScopeNote"></span></p></div></div>
+      <table class="dashboard-table">
+        <thead><tr><th>Module</th><th>Overdue</th><th>Due Soon</th><th>Blocked</th><th>High Risk</th><th>Critical Dependencies</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Phases</strong></td>
+            <td><span class="link-click" id="sum-phase-overdue" onclick="triggerTab('phase')">- Items</span></td>
+            <td><span class="link-click-soon" id="sum-phase-soon" onclick="triggerTab('phase')">- Items</span></td>
+            <td id="sum-phase-blocked">0</td><td id="sum-phase-highrisk">0</td>
+            <td id="sum-phase-critdep">-</td>
+          </tr>
+          <tr>
+            <td><strong>Milestones</strong></td>
+            <td><span class="link-click" id="sum-milestone-overdue" onclick="triggerTab('milestone')">- Items</span></td>
+            <td><span class="link-click-soon" id="sum-milestone-soon" onclick="triggerTab('milestone')">- Items</span></td>
+            <td id="sum-milestone-blocked">0</td><td id="sum-milestone-highrisk">0</td>
+            <td id="sum-milestone-critdep">0</td>
+          </tr>
+          <tr>
+            <td><strong>Tasks</strong></td>
+            <td><span class="link-click" id="sum-task-overdue" onclick="triggerTab('task')">- Items</span></td>
+            <td><span class="link-click-soon" id="sum-task-soon" onclick="triggerTab('task')">- Items</span></td>
+            <td id="sum-task-blocked">-</td><td id="sum-task-highrisk">0</td>
+            <td id="sum-task-critdep">-</td>
+          </tr>
+          <tr>
+            <td><strong>Risks</strong></td>
+            <td><span class="link-click" id="sum-risk-overdue" onclick="triggerTab('risk')">- Items</span></td>
+            <td><span class="link-click-soon" id="sum-risk-soon" onclick="triggerTab('risk')">- Items</span></td>
+            <td id="sum-risk-blocked">0</td><td id="sum-risk-highrisk">-</td>
+            <td id="sum-risk-critdep">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tier 2: the work zone -->
+    <div class="section-block gantt-card" style="padding:0;">
+      <div class="gantt-toolbar">
+        <div class="gantt-toolbar-title">Program Timeline <span class="muted">Jun – Sep 2026</span></div>
+        <div class="gantt-actions">
+          <div class="gantt-zoom">
+            <button class="zoom-btn" data-zoom="week">Week</button>
+            <button class="zoom-btn active" data-zoom="month">Month</button>
+            <button class="zoom-btn" data-zoom="quarter">Quarter</button>
+          </div>
+          <button class="btn small" id="expandAllBtn">Expand All</button>
+          <button class="btn small" id="collapseAllBtn">Collapse All</button>
+          <div class="export-menu">
+            <button class="btn small" id="exportBtn">Export ▾</button>
+            <div class="export-dropdown" id="exportDropdown">
+              <button data-fmt="Excel">Excel</button><button data-fmt="PDF">PDF</button><button data-fmt="PNG">PNG</button><button data-fmt="CSV">CSV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chip-row" id="quickFilters">
+        <button class="chip active" data-filter="all">All Items</button>
+        <button class="chip" data-filter="overdue">Overdue</button>
+        <button class="chip" data-filter="duesoon">Due Soon</button>
+        <button class="chip" data-filter="blocked">Blocked</button>
+        <button class="chip" data-filter="highrisk">High Risk</button>
+        <button class="chip" data-filter="completed">Completed</button>
+      </div>
+
+      <div class="chip-row" style="border-bottom:1px solid var(--border);">
+        <input id="searchBox" class="input" placeholder="Search node..." style="min-width:200px" />
+        <select id="typeFilter" class="select">
+          <option value="all">All types</option>
+          <option value="phase">Phase</option>
+          <option value="milestone">Milestone</option>
+          <option value="task">Task</option>
+          <option value="risk">Risk</option>
+        </select>
+        <select id="priorityFilter" class="select">
+          <option value="all">All priorities</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+        <label class="switch"><input type="checkbox" id="baselineToggle" checked> Baseline</label>
+        <label class="switch"><input type="checkbox" id="depsToggle" checked> Dependencies</label>
+        <label class="switch"><input type="checkbox" id="todayToggle" checked> Today</label>
+        <button class="btn small" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="layout">
+        <div class="gantt-card">
+          <div class="gantt-scroll" id="ganttScroll">
+            <div class="gantt-inner" id="ganttInner">
+              <div class="gantt-header">
+                <div class="gantt-header-label">Task</div>
+                <div class="gantt-header-ruler">
+                  <div class="gantt-months" id="ganttMonths"></div>
+                  <div class="gantt-weeks" id="ganttWeeks"></div>
+                </div>
+              </div>
+              <div class="gantt-body" id="ganttBody">
+                <div class="gantt-overlay" id="ganttOverlay">
+                  <svg class="gantt-deps" id="ganttDeps">
+                    <defs>
+                      <marker id="arrowGray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6b8c"></path></marker>
+                      <marker id="arrowRed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f43f5e"></path></marker>
+                    </defs>
+                  </svg>
+                  <div class="gantt-today" id="ganttToday"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="detail" id="detailPanel">
+            <h3>Selected Item</h3>
+            <div class="crumbs" id="crumbs">No selection</div>
+
+            <details class="detail-section" open>
+              <summary>General <span class="chev">▶</span></summary>
+              <div class="section-body">
+                <div class="line"><span>Name</span><strong id="dName">-</strong></div>
+                <div class="line"><span>Type</span><strong id="dType">-</strong></div>
+                <div class="line"><span>Owner</span><strong id="dOwner">-</strong></div>
+                <div class="line"><span>Status</span><strong id="dStatusOnly">-</strong></div>
+                <div class="line"><span>Priority</span><strong id="dPriority">-</strong></div>
+                <div class="line"><span>RAG</span><strong id="dRag">-</strong></div>
+              </div>
+            </details>
+
+            <details class="detail-section" open>
+              <summary>Schedule <span class="chev">▶</span></summary>
+              <div class="section-body">
+                <div class="line"><span>Start</span><strong id="dStart">-</strong></div>
+                <div class="line"><span>Baseline Start</span><strong id="dBaselineStart">-</strong></div>
+                <div class="line"><span>Finish</span><strong id="dFinish">-</strong></div>
+                <div class="line"><span>Baseline Finish</span><strong id="dBaselineFinish">-</strong></div>
+                <div class="line"><span>Forecast Finish</span><strong id="dForecastFinish">-</strong></div>
+                <div class="line"><span>Duration</span><strong id="dDuration">-</strong></div>
+                <div class="line"><span>Variance</span><strong id="dVariance">-</strong></div>
+              </div>
+            </details>
+
+            <details class="detail-section">
+              <summary>Dependencies <span class="chev">▶</span></summary>
+              <div class="section-body">
+                <div class="line"><span>Parent Item</span><strong id="dParent">-</strong></div>
+                <div class="line"><span>Child Items</span><strong id="dChildren">-</strong></div>
+                <div class="line"><span>Child Count</span><strong id="dChildCount">-</strong></div>
+                <div class="line"><span>Upstream</span><strong id="dUpstream">-</strong></div>
+                <div class="line"><span>Downstream</span><strong id="dDownstream">-</strong></div>
+                <div class="line"><span>Dependency Count</span><strong id="dDepCount">-</strong></div>
+              </div>
+            </details>
+
+            <details class="detail-section">
+              <summary>Risks <span class="chev">▶</span></summary>
+              <div class="section-body">
+                <div class="line"><span>Linked Risks</span><strong id="dLinkedRisks">-</strong></div>
+                <div class="line"><span>Risk Severity</span><strong id="dRiskSeverity">-</strong></div>
+                <div class="line"><span>Risk Owner</span><strong id="dRiskOwner">-</strong></div>
+              </div>
+            </details>
+
+            <details class="detail-section">
+              <summary>Resources <span class="chev">▶</span></summary>
+              <div class="section-body">
+                <div class="line"><span>Assigned Resources</span><strong id="dAssignedResources">-</strong></div>
+                <div class="line"><span>Allocation</span><strong id="dAllocation">-</strong></div>
+                <div class="line"><span>Utilization</span><strong id="dUtilization">-</strong></div>
+              </div>
+            </details>
+
+            <div class="line" style="margin-top:10px"><span>Description</span></div>
+            <div class="muted" id="dMeta" style="font-size:12.5px;line-height:1.5">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier 3: dig deeper, collapsed by default -->
+    <details class="accordion" id="resourceAccordion">
+      <summary>
+        <div><div class="accordion-heading">Resource &amp; Workload</div><div class="accordion-sub">Who's carrying what, and what's coming due <span id="resourceScopeNote"></span></div></div>
+        <span class="chev">▶</span>
+      </summary>
+      <div class="accordion-body">
+        <div class="mini-grid">
+          <div class="mini-card">
+            <div class="mini-title">Owner Workload</div>
+            <table class="dashboard-table">
+              <thead><tr><th>Owner</th><th>Assigned</th><th>Completed</th><th>Blocked</th><th>Avg. Progress</th></tr></thead>
+              <tbody id="ownerWorkloadBody"></tbody>
+            </table>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Indicative Load</div>
+            <div id="utilizationBars"></div>
+            <div class="mini-note">Based on open task count per owner, not logged hours.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Upcoming Deliverables</div>
+            <table class="dashboard-table">
+              <thead><tr><th>Due</th><th>Milestone</th><th>Owner</th><th>Status</th></tr></thead>
+              <tbody id="upcomingBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="accordion" id="riskAccordion">
+      <summary>
+        <div><div class="accordion-heading">Risk &amp; Dependency Watch</div><div class="accordion-sub">Open risks with mitigation plans, and what a delay is dragging down with it <span id="riskScopeNote"></span></div></div>
+        <span class="chev">▶</span>
+      </summary>
+      <div class="accordion-body">
+        <div class="mini-grid cols-1">
+          <div class="mini-card">
+            <div class="mini-title">Risk Register</div>
+            <table class="dashboard-table">
+              <thead><tr><th>Risk</th><th>Owner</th><th>Prob.</th><th>Impact</th><th>Status</th><th>Severity</th><th>Mitigation Priority</th><th>Mitigation Plan</th></tr></thead>
+              <tbody id="riskRegisterBody"></tbody>
+            </table>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Dependency Impact</div>
+            <table class="dashboard-table">
+              <thead><tr><th>Delayed Item</th><th>Blocks Milestone</th><th>Affected Tasks</th><th>Affected Milestones</th><th>Delay</th><th>Severity</th><th>Mitigation Priority</th></tr></thead>
+              <tbody id="dependencyImpactBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ MODULE DEEP-DIVE ============ -->
+  <section class="content" id="module-section">
+    <div class="section-head">
+      <div>
+        <h2 class="title" id="module-title">Component View</h2>
+        <p class="subtitle" id="module-subtitle">All items in this module, most urgent first.</p>
+      </div>
+      <button class="btn" onclick="triggerTab('analytics')">← Back to Analytics</button>
+    </div>
+    <div class="table-container">
+      <table class="dashboard-table" id="module-table"><thead><tr><th>Flag</th><th>ID</th><th>Name</th><th>Status</th><th>Priority</th><th>Variance</th><th>Description</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+  /* ============ DATA MODEL ============ */
+  const treeData = [{
+    id:'p1', type:'project', name:'CRM Migration', status:'In Progress', user:'Asha',
+    description:'Enterprise CRM migration program covering discovery through go-live.',
+    children:[
+      { id:'ph1', type:'phase', name:'Discovery', status:'Completed', user:'Asha',
+        planStart:'2026-06-01', planEnd:'2026-06-20', actStart:'2026-06-01', actEnd:'2026-06-20',
+        description:'Requirements gathering and scope sign-off.', children:[
+        { id:'m1', type:'milestone', name:'Scope Sign-off', status:'Achieved', user:'Asha',
+          plannedDue:'2026-06-16', achievedDate:'2026-06-15',
+          description:'Formal sign-off on project scope with stakeholders.', children:[
+          { id:'t1', type:'task', name:'Business Review', status:'Completed', priority:'Medium', percentComplete:100, user:'Priya',
+            planStart:'2026-06-06', planEnd:'2026-06-12', actStart:'2026-06-06', actEnd:'2026-06-12',
+            description:'Stakeholder review of business requirements.', children:[
+            { id:'r1', type:'risk', name:'Change Requests', status:'Mitigated', priority:'Medium', probability:'Medium', impact:'Medium', user:'Priya',
+              identifiedDate:'2026-06-08', targetDate:'2026-06-14', resolvedDate:'2026-06-13',
+              mitigationPlan:'Change control board reviews all scope changes weekly.',
+              description:'Potential scope creep from late stakeholder requests.' }
+          ]}
+        ]}
+      ]},
+      { id:'ph2', type:'phase', name:'Build', status:'In Progress', user:'Deepak',
+        planStart:'2026-06-21', planEnd:'2026-08-11', actStart:'2026-06-21', actEnd:'2026-08-20',
+        description:'Core build phase covering data mapping, integration, and validation.', children:[
+        { id:'m2', type:'milestone', name:'Data Mapping', status:'Due', user:'Deepak',
+          plannedDue:'2026-06-30', achievedDate:null,
+          description:'Confirm source-to-target field mapping is complete.', children:[
+          { id:'t2', type:'task', name:'ETL Prep', status:'Blocked', priority:'High', percentComplete:60, user:'Deepak',
+            planStart:'2026-06-26', planEnd:'2026-07-05', actStart:'2026-06-28', actEnd:'2026-07-12',
+            description:'Prepare ETL pipelines pending vendor source access.', children:[
+            { id:'r2', type:'risk', name:'Source Delay', status:'Open', priority:'High', probability:'High', impact:'High', user:'Meera',
+              identifiedDate:'2026-06-20', targetDate:'2026-07-01', resolvedDate:null,
+              mitigationPlan:'Escalate to vendor account manager; daily status check-ins.',
+              description:'Vendor has not granted source system access.' },
+            { id:'r3', type:'risk', name:'Schema Drift', status:'Monitoring', priority:'Medium', probability:'Medium', impact:'High', user:'Deepak',
+              identifiedDate:'2026-06-25', targetDate:'2026-07-10', resolvedDate:null,
+              mitigationPlan:'Automated schema comparison run nightly against source.',
+              description:'Source schema fields may not match target model.' }
+          ]},
+          { id:'t3', type:'task', name:'Mapping Validation', status:'In Progress', priority:'Medium', percentComplete:70, user:'Deepak',
+            planStart:'2026-07-06', planEnd:'2026-07-15', actStart:'2026-07-06', actEnd:'2026-07-15',
+            description:'Validate mapped fields against sample data sets.', children:[
+            { id:'r4', type:'risk', name:'Rework', status:'Monitoring', priority:'Low', probability:'Low', impact:'Medium', user:'Deepak',
+              identifiedDate:'2026-07-01', targetDate:'2026-07-14', resolvedDate:null,
+              mitigationPlan:'Peer review before final validation sign-off.',
+              description:'Validation may surface fields requiring re-mapping.' }
+          ]}
+        ]},
+        { id:'m3', type:'milestone', name:'Integration Ready', status:'Due', user:'Deepak',
+          plannedDue:'2026-07-09', achievedDate:null,
+          description:'Confirm system integration test environment is ready.', children:[
+          { id:'t4', type:'task', name:'API Test', status:'In Progress', priority:'High', percentComplete:40, user:'Kabir',
+            planStart:'2026-07-08', planEnd:'2026-07-18', actStart:'2026-07-09', actEnd:'2026-07-22',
+            description:'Execute API test suite against staging environment.', children:[
+            { id:'r5', type:'risk', name:'Service Timeout', status:'Open', priority:'High', probability:'Medium', impact:'High', user:'Kabir',
+              identifiedDate:'2026-07-02', targetDate:'2026-07-16', resolvedDate:null,
+              mitigationPlan:'Increase gateway timeout thresholds; add retry logic.',
+              description:'Intermittent timeouts observed calling downstream services on staging.' }
+          ]}
+        ]}
+      ]}
+    ]
+  }];
+
+  const AXIS_START = new Date('2026-06-01T00:00:00');
+  const AXIS_END = new Date('2026-09-30T00:00:00');
+  const TODAY = new Date('2026-07-04T00:00:00');
+  const MS_DAY = 86400000;
+  const TOTAL_DAYS = Math.round((AXIS_END - AXIS_START) / MS_DAY);
+  const LABEL_W = 260;
+  const ZOOM_PX_PER_DAY = { week: 34, month: 11, quarter: 4 };
+  let currentZoom = 'month';
+
+  const tooltip = document.getElementById('tooltip');
+  const toastEl = document.getElementById('toast');
+  function $(id){ return document.getElementById(id); }
+
+  function d(s){ return s ? new Date(s + 'T00:00:00') : null; }
+  function fmtDate(dt){ return dt ? dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—'; }
+  function daysBetween(a,b){ return Math.round((a - b) / MS_DAY); }
+  function dateToPct(date){ return ((date - AXIS_START) / (AXIS_END - AXIS_START)) * 100; }
+
+  function enrich(node, parent=null){
+    node.parent = parent;
+    node.children = node.children || [];
+    const ps = d(node.planStart), pe = d(node.planEnd), as = d(node.actStart) || ps, ae = d(node.actEnd) || pe,
+          pd = d(node.plannedDue), ad = d(node.achievedDate), idt = d(node.identifiedDate), td = d(node.targetDate), rd = d(node.resolvedDate);
+    if(node.type === 'task' || node.type === 'phase' || node.type === 'project'){
+      node.startDate = as; node.endDate = ae; node.baselineStartDate = ps; node.baselineEndDate = pe;
+      node.progress = node.percentComplete ?? (node.status === 'Completed' ? 100 : 0);
+    } else if(node.type === 'milestone'){
+      node.startDate = ad || pd; node.endDate = ad || pd; node.baselineEndDate = pd; node.progress = ad ? 100 : 0;
+    } else if(node.type === 'risk'){
+      node.startDate = idt; node.endDate = rd || td; node.baselineEndDate = td; node.progress = rd ? 100 : (node.status === 'Monitoring' ? 50 : 0);
+    }
+    node.start = dateToPct(node.startDate || node.baselineEndDate || AXIS_START);
+    node.end = dateToPct(node.endDate || node.baselineEndDate || AXIS_START);
+    node.baselineStart = dateToPct(node.baselineStartDate || node.startDate || AXIS_START);
+    node.baselineEnd = dateToPct(node.baselineEndDate || node.endDate || AXIS_START);
+    node.durationDays = Math.max(1, Math.round(((node.endDate || node.startDate || AXIS_START) - (node.startDate || AXIS_START)) / MS_DAY));
+    node.varianceDays = node.endDate && node.baselineEndDate ? daysBetween(node.endDate, node.baselineEndDate) : 0;
+    node.isOverdue = !!(node.endDate && !isResolved(node) && TODAY > node.endDate);
+    node.isSoonOverdue = !!(node.endDate && !isResolved(node) && TODAY <= node.endDate && daysBetween(node.endDate, TODAY) <= 7);
+    node.children.forEach(c => enrich(c, node));
+  }
+  function isResolved(node){
+    return node.status === 'Completed' || node.status === 'Achieved' || node.status === 'Mitigated' || node.status === 'Closed' || node.progress >= 100;
+  }
+  treeData.forEach(n => enrich(n));
+
+  function collect(type){
+    const out = [];
+    (function walk(arr){ arr.forEach(n => { if(n.type === type) out.push(n); if(n.children) walk(n.children); }); })(treeData);
+    return out;
+  }
+  function collectWithin(root, type){
+    const out = [];
+    (function walk(n){ if(n.type === type) out.push(n); (n.children || []).forEach(walk); })(root);
+    return out;
+  }
+  function findNodeById(id){
+    let found = null;
+    (function walk(arr){ arr.forEach(n => { if(n.id === id) found = n; if(!found && n.children) walk(n.children); }); })(treeData);
+    return found;
+  }
+
+  function healthScore(root){
+    root = root || treeData[0];
+    const tasks = collectWithin(root, 'task'), risks = collectWithin(root, 'risk');
+    const blocked = tasks.filter(t => t.status === 'Blocked').length;
+    const highRisks = risks.filter(r => r.priority === 'High' && !isResolved(r)).length;
+    const slip = tasks.filter(t => t.varianceDays > 0).length;
+    let score = 100 - (100 - (root.progress || 0)) * 0.25 - slip * 4 - highRisks * 7 - blocked * 8;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  /* ============ SUMMARY / KPIs / EXCEPTION TABLE ============ */
+  function renderSummary(scopeNode){
+    const root = scopeNode || treeData[0];
+    const isPortfolio = root.id === treeData[0].id;
+
+    // Tile counts are always portfolio-wide -- they're navigation, not a focus-dependent metric
+    document.getElementById('tileCount-phase').textContent = collect('phase').length;
+    document.getElementById('tileCount-milestone').textContent = collect('milestone').length;
+    document.getElementById('tileCount-task').textContent = collect('task').length;
+    document.getElementById('tileCount-risk').textContent = collect('risk').length;
+
+    const scopePill = document.getElementById('scopePill');
+    scopePill.classList.toggle('scope-active', !isPortfolio);
+    document.getElementById('exceptionScopeNote').textContent = isPortfolio ? '' : `— scoped to ${root.name}`;
+
+    // Everything below is scoped to the focused branch (defaults to the whole project)
+    const phases = collectWithin(root, 'phase'), milestones = collectWithin(root, 'milestone'),
+          tasks = collectWithin(root, 'task'), risks = collectWithin(root, 'risk');
+    const overdue = arr => arr.filter(n => n.isOverdue).length;
+    const soon = arr => arr.filter(n => n.isSoonOverdue).length;
+
+    document.getElementById('sum-phase-overdue').textContent = overdue(phases) + ' Items';
+    document.getElementById('sum-phase-soon').textContent = soon(phases) + ' Items';
+    document.getElementById('sum-milestone-overdue').textContent = overdue(milestones) + ' Items';
+    document.getElementById('sum-milestone-soon').textContent = soon(milestones) + ' Items';
+    document.getElementById('sum-task-overdue').textContent = overdue(tasks) + ' Items';
+    document.getElementById('sum-task-soon').textContent = soon(tasks) + ' Items';
+    document.getElementById('sum-risk-overdue').textContent = overdue(risks) + ' Items';
+    document.getElementById('sum-risk-soon').textContent = soon(risks) + ' Items';
+
+    const blockedTasks = tasks.filter(t => t.status === 'Blocked').length;
+    const blockedPhases = phases.filter(p => p.status === 'Blocked').length;
+    const openHighRisks = risks.filter(r => r.priority === 'High' && !isResolved(r)).length;
+    const critDepTasks = tasks.filter(t => t.varianceDays > 0 && !isResolved(t)).length;
+    const critDepPhases = phases.filter(p => p.varianceDays > 0 && !isResolved(p)).length;
+
+    document.getElementById('sum-task-blocked').textContent = blockedTasks;
+    document.getElementById('sum-phase-blocked').textContent = blockedPhases;
+    document.getElementById('sum-risk-highrisk').textContent = openHighRisks;
+    document.getElementById('sum-task-critdep').textContent = critDepTasks;
+    document.getElementById('sum-phase-critdep').textContent = critDepPhases;
+
+    const health = healthScore(root);
+    document.getElementById('kpiProjectProgress').textContent = (root.progress || 0) + '%';
+    document.getElementById('kpiHealth').textContent = health + '%';
+    document.getElementById('kpiHealthHint').textContent = health >= 85 ? 'Healthy' : (health >= 65 ? 'Attention Required' : 'At Risk');
+
+    if(isPortfolio){
+      const baselineFinish = new Date('2026-08-11T00:00:00');
+      const forecastFinish = new Date('2026-08-20T00:00:00');
+      const variance = daysBetween(forecastFinish, baselineFinish);
+      document.getElementById('kpiForecast').textContent = fmtDate(forecastFinish);
+      document.getElementById('kpiForecastHint').textContent = `Baseline ${fmtDate(baselineFinish)} · +${variance}d`;
+    } else {
+      const v = root.varianceDays || 0;
+      document.getElementById('kpiForecast').textContent = `${v > 0 ? '+' : ''}${v}d`;
+      document.getElementById('kpiForecastHint').textContent = `vs. baseline finish ${fmtDate(root.baselineEndDate)}`;
+    }
+    document.getElementById('kpiHighRisk').textContent = openHighRisks;
+    document.getElementById('kpiBlockedTasks').textContent = blockedTasks;
+  }
+
+  /* ============ RESOURCE & WORKLOAD (computed) ============ */
+  function renderResourceTables(scopeNode){
+    const root = scopeNode || treeData[0];
+    const isPortfolio = root.id === treeData[0].id;
+    document.getElementById('resourceScopeNote').textContent = isPortfolio ? '' : `— scoped to ${root.name}`;
+
+    const tasks = collectWithin(root, 'task');
+    const byOwner = {};
+    tasks.forEach(t => {
+      const owner = t.user || 'Unassigned';
+      byOwner[owner] = byOwner[owner] || { assigned:0, completed:0, blocked:0, progressSum:0 };
+      byOwner[owner].assigned++;
+      byOwner[owner].progressSum += (t.progress || 0);
+      if(isResolved(t)) byOwner[owner].completed++;
+      if(t.status === 'Blocked') byOwner[owner].blocked++;
+    });
+    const ownerBody = document.getElementById('ownerWorkloadBody');
+    const utilWrap = document.getElementById('utilizationBars');
+    ownerBody.innerHTML = ''; utilWrap.innerHTML = '';
+    if(Object.keys(byOwner).length === 0){
+      ownerBody.innerHTML = '<tr><td colspan="5" class="muted">No tasks in this scope.</td></tr>';
+      utilWrap.innerHTML = '<div class="muted">No tasks in this scope.</div>';
+    }
+    Object.keys(byOwner).sort().forEach(owner => {
+      const o = byOwner[owner];
+      const avg = Math.round(o.progressSum / o.assigned);
+      ownerBody.innerHTML += `<tr><td>${owner}</td><td>${o.assigned}</td><td>${o.completed}</td><td>${o.blocked}</td><td>${avg}%</td></tr>`;
+      const openCount = o.assigned - o.completed;
+      const util = Math.min(140, openCount * 40);
+      const color = util > 100 ? 'var(--rose)' : util > 75 ? 'var(--amber)' : 'var(--emerald)';
+      utilWrap.innerHTML += `<div class="bar-row"><div class="bar-label">${owner}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,util)}%;background:${color}"></div></div></div>`;
+    });
+
+    const milestones = collectWithin(root, 'milestone').filter(m => !isResolved(m)).sort((a,b) => (a.baselineEndDate - b.baselineEndDate));
+    const upcomingBody = document.getElementById('upcomingBody');
+    upcomingBody.innerHTML = milestones.slice(0,5).map(m => {
+      const badge = m.isOverdue ? '<span class="badge red">Overdue</span>' : m.isSoonOverdue ? '<span class="badge amber">Due Soon</span>' : '<span class="badge gray">Pending</span>';
+      return `<tr><td>${fmtDate(m.baselineEndDate)}</td><td>${m.name}</td><td>${m.user || '-'}</td><td>${badge}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" class="muted">No upcoming milestones in this scope.</td></tr>';
+  }
+
+  /* ============ DECISION-SUPPORT SCORING ============ */
+  const SEV_RANK = { Low:0, Medium:1, High:2 };
+  function riskSeverity(r){
+    const score = (SEV_RANK[r.probability] ?? 0) + (SEV_RANK[r.impact] ?? 0);
+    if(score >= 3) return { label:'Critical', cls:'red' };
+    if(score >= 2) return { label:'High', cls:'red' };
+    if(score >= 1) return { label:'Medium', cls:'amber' };
+    return { label:'Low', cls:'green' };
+  }
+  function riskMitigationPriority(r){
+    if(isResolved(r)) return { label:'Resolved', cls:'green' };
+    const sev = riskSeverity(r);
+    if(sev.label === 'Critical') return { label:'Immediate', cls:'red' };
+    if(sev.label === 'High') return { label:'This Week', cls:'amber' };
+    if(sev.label === 'Medium') return { label:'Monitor', cls:'blue' };
+    return { label:'Low Priority', cls:'gray' };
+  }
+  function delaySeverity(varianceDays, hasHighRiskLink){
+    if(varianceDays >= 7 || hasHighRiskLink) return { label:'High', cls:'red' };
+    if(varianceDays >= 3) return { label:'Medium', cls:'amber' };
+    return { label:'Low', cls:'gray' };
+  }
+  function delayMitigationPriority(sevLabel, isOverdue){
+    if(sevLabel === 'High') return { label:'Immediate', cls:'red' };
+    if(sevLabel === 'Medium') return { label: isOverdue ? 'This Week' : 'Monitor', cls: isOverdue ? 'amber' : 'blue' };
+    return { label:'Low Priority', cls:'gray' };
+  }
+
+  /* ============ RISK REGISTER + DEPENDENCY IMPACT (computed) ============ */
+  function renderRiskTables(scopeNode){
+    const root = scopeNode || treeData[0];
+    const isPortfolio = root.id === treeData[0].id;
+    document.getElementById('riskScopeNote').textContent = isPortfolio ? '' : `— scoped to ${root.name}`;
+
+    const risks = collectWithin(root, 'risk');
+    const riskBody = document.getElementById('riskRegisterBody');
+    riskBody.innerHTML = risks.map(r => {
+      const statusBadge = isResolved(r) ? '<span class="badge green">' + r.status + '</span>' : r.status === 'Open' ? '<span class="badge red">Open</span>' : '<span class="badge amber">' + r.status + '</span>';
+      const sev = riskSeverity(r);
+      const pri = riskMitigationPriority(r);
+      return `<tr><td>${r.name}</td><td>${r.user || '-'}</td><td>${r.probability || '-'}</td><td>${r.impact || '-'}</td><td>${statusBadge}</td><td><span class="badge ${sev.cls}">${sev.label}</span></td><td><span class="badge ${pri.cls}">${pri.label}</span></td><td>${r.mitigationPlan || '-'}</td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">No risks in this scope.</td></tr>';
+
+    const tasks = collectWithin(root, 'task').filter(t => t.varianceDays > 0 && !isResolved(t));
+    const depBody = document.getElementById('dependencyImpactBody');
+    depBody.innerHTML = tasks.map(t => {
+      const parentMilestone = t.parent && t.parent.type === 'milestone' ? t.parent.name : '—';
+      const siblingTasks = t.parent ? t.parent.children.filter(c => c.type === 'task' && c.id !== t.id) : [];
+      const affectedMilestones = t.parent && t.parent.type === 'milestone' ? 1 : 0;
+      const linkedRisks = collectWithin(t, 'risk');
+      const hasHighRiskLink = linkedRisks.some(r => r.priority === 'High' && !isResolved(r));
+      const sev = delaySeverity(t.varianceDays, hasHighRiskLink);
+      const pri = delayMitigationPriority(sev.label, t.isOverdue);
+      return `<tr><td>${t.name}</td><td>${parentMilestone}</td><td>${siblingTasks.length}</td><td>${affectedMilestones}</td><td>${t.varianceDays}d</td><td><span class="badge ${sev.cls}">${sev.label}</span></td><td><span class="badge ${pri.cls}">${pri.label}</span></td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="muted">No delayed items in this scope.</td></tr>';
+  }
+
+  /* ============ FILTER STATE ============ */
+  let quickFilter = 'all', typeFilterVal = 'all', priorityFilterVal = 'all', searchTerm = '';
+  let currentIdPath = null; // id-path of the node currently in Focus Mode; null only before first render
+  const quickPredicates = {
+    all: () => true,
+    overdue: n => n.isOverdue,
+    duesoon: n => n.isSoonOverdue,
+    blocked: n => n.status === 'Blocked',
+    highrisk: n => n.type === 'risk' && n.priority === 'High' && !isResolved(n),
+    completed: n => isResolved(n)
+  };
+  function nodeOwnMatch(node){
+    if(!quickPredicates[quickFilter](node)) return false;
+    if(typeFilterVal !== 'all' && node.type !== typeFilterVal) return false;
+    if(priorityFilterVal !== 'all' && node.priority !== priorityFilterVal) return false;
+    if(searchTerm && !node.name.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  }
+  function computeVisible(node){
+    let anyChildVisible = false;
+    node.children.forEach(c => { if(computeVisible(c)) anyChildVisible = true; });
+    node.visible = nodeOwnMatch(node) || anyChildVisible;
+    return node.visible;
+  }
+
+  /* ============ TOOLTIP + DETAIL PANEL ============ */
+  function healthClass(node){ return node.isOverdue ? 'overdue' : node.isSoonOverdue ? 'soon' : 'healthy'; }
+  function progressText(node){ return node.type === 'milestone' ? (node.progress ? '100%' : '0%') : `${node.progress || 0}%`; }
+  function ragLabel(node){
+    if(node.isOverdue) return 'Red · Overdue';
+    if(node.isSoonOverdue) return 'Amber · Due Soon';
+    if(isResolved(node)) return 'Green · Completed';
+    return 'Green · On Track';
+  }
+
+  function showNodeTip(node, x, y){
+    tooltip.className = 'tooltip ' + healthClass(node);
+    tooltip.innerHTML = `<div class="tt-head">${node.name}<div class="tt-sub">${node.type} • ${node.status}</div></div>
+      <div class="tt-body">
+        <span class="tt-k">Owner</span><span class="tt-v">${node.user || '-'}</span>
+        <span class="tt-k">Start</span><span class="tt-v">${fmtDate(node.startDate || node.baselineStartDate)}</span>
+        <span class="tt-k">Finish</span><span class="tt-v">${fmtDate(node.endDate || node.baselineEndDate)}</span>
+        <span class="tt-k">Duration</span><span class="tt-v">${node.durationDays || '—'}d</span>
+        <span class="tt-k">Progress</span><span class="tt-v">${progressText(node)}</span>
+        <span class="tt-k">Variance</span><span class="tt-v">${node.varianceDays || 0}d</span>
+        <span class="tt-k">Priority</span><span class="tt-v">${node.priority || '-'}</span>
+      </div>`;
+    tooltip.style.left = (x + 14) + 'px';
+    tooltip.style.top = (y + 14) + 'px';
+    tooltip.style.display = 'block';
+  }
+  function hideTip(){ tooltip.style.display = 'none'; }
+
+  function buildCrumbTrail(container, namePath, idPath, isPortfolio){
+    container.innerHTML = '';
+    if(isPortfolio){ container.textContent = 'Portfolio-wide'; return; }
+    const viewingLabel = document.createElement('span');
+    viewingLabel.className = 'muted';
+    viewingLabel.textContent = 'Viewing: ';
+    container.appendChild(viewingLabel);
+    namePath.forEach((name, idx) => {
+      const isLast = idx === namePath.length - 1;
+      const span = document.createElement('span');
+      span.className = 'crumb-item' + (isLast ? ' current' : '');
+      span.textContent = name;
+      if(!isLast){
+        span.addEventListener('click', () => {
+          const targetNode = findNodeById(idPath[idx]);
+          if(targetNode) setFocus(targetNode, namePath.slice(0, idx + 1), idPath.slice(0, idx + 1));
+        });
+      }
+      container.appendChild(span);
+      if(!isLast){
+        const sep = document.createElement('span');
+        sep.className = 'crumb-sep';
+        sep.textContent = '›';
+        container.appendChild(sep);
+      }
+    });
+  }
+  function renderBreadcrumbs(namePath, idPath){
+    const isPortfolio = idPath[idPath.length - 1] === treeData[0].id && idPath.length === 1;
+    buildCrumbTrail($('crumbs'), namePath, idPath, false);
+    buildCrumbTrail($('summaryCrumbs'), namePath, idPath, isPortfolio);
+  }
+
+  function revealAndScrollTo(node){
+    const rowEl = document.querySelector(`.gantt-row[data-id="${node.id}"]`);
+    if(!rowEl) return;
+    let ancestorWrap = rowEl.closest('.gantt-row-wrap')?.parentElement.closest('.gantt-row-wrap');
+    let expanded = false;
+    while(ancestorWrap){
+      if(ancestorWrap.classList.contains('collapsed')){
+        ancestorWrap.classList.remove('collapsed');
+        const t = ancestorWrap.querySelector(':scope > .gantt-row .gantt-toggle');
+        if(t) t.textContent = '▾';
+        expanded = true;
+      }
+      ancestorWrap = ancestorWrap.parentElement.closest('.gantt-row-wrap');
+    }
+    if(expanded) layoutGantt();
+    requestAnimationFrame(() => rowEl.scrollIntoView({ behavior:'smooth', block:'center', inline:'nearest' }));
+  }
+
+  function pulseScopeUI(){
+    document.querySelectorAll('.grid-5, #resourceAccordion, #riskAccordion, .pill').forEach(el => {
+      el.classList.remove('scope-pulse');
+      void el.offsetWidth;
+      el.classList.add('scope-pulse');
+    });
+  }
+
+  function setFocus(node, namePath, idPath){
+    currentIdPath = idPath;
+    pulseScopeUI();
+
+    // General
+    $('dName').textContent = node.name;
+    $('dType').textContent = node.type.toUpperCase();
+    $('dOwner').textContent = node.user || '-';
+    $('dStatusOnly').textContent = node.status;
+    $('dPriority').textContent = node.priority || '-';
+    $('dRag').textContent = ragLabel(node);
+
+    // Schedule
+    $('dStart').textContent = fmtDate(node.startDate || node.baselineStartDate);
+    $('dBaselineStart').textContent = fmtDate(node.baselineStartDate || node.startDate);
+    $('dFinish').textContent = fmtDate(node.endDate || node.baselineEndDate);
+    $('dBaselineFinish').textContent = fmtDate(node.baselineEndDate);
+    $('dForecastFinish').textContent = fmtDate(node.endDate || node.baselineEndDate);
+    $('dDuration').textContent = `${node.durationDays || '—'}d`;
+    $('dVariance').textContent = `${node.varianceDays > 0 ? '+' : ''}${node.varianceDays || 0}d`;
+
+    // Dependencies
+    $('dParent').textContent = node.parent ? `${node.parent.name} (${node.parent.type})` : '— top level';
+    $('dChildren').textContent = node.children.length ? node.children.map(c => c.name).join(', ') : 'None';
+    $('dChildCount').textContent = node.children.length;
+    $('dUpstream').textContent = node.parent ? node.parent.name : '—';
+    $('dDownstream').textContent = node.children.length ? node.children.map(c => c.name).join(', ') : 'None';
+    $('dDepCount').textContent = (node.parent ? 1 : 0) + node.children.length;
+
+    // Risks
+    const linkedRisks = collectWithin(node, 'risk');
+    $('dLinkedRisks').textContent = linkedRisks.length;
+    const openLinked = linkedRisks.filter(r => !isResolved(r));
+    const highestSeverity = openLinked.some(r => r.priority === 'High') ? 'High' : openLinked.some(r => r.priority === 'Medium') ? 'Medium' : openLinked.length ? 'Low' : '—';
+    $('dRiskSeverity').textContent = highestSeverity;
+    $('dRiskOwner').textContent = linkedRisks.length === 0 ? '—' : linkedRisks.length === 1 ? (linkedRisks[0].user || '-') : 'Multiple';
+
+    // Resources
+    const branchTasks = collectWithin(node, 'task');
+    const owners = [...new Set(branchTasks.map(t => t.user || 'Unassigned'))];
+    $('dAssignedResources').textContent = owners.length ? owners.join(', ') : '—';
+    $('dAllocation').textContent = `${branchTasks.length} task${branchTasks.length === 1 ? '' : 's'}`;
+    if(owners.length){
+      const avgUtil = Math.round(owners.reduce((sum, owner) => {
+        const ownerTasks = branchTasks.filter(t => (t.user || 'Unassigned') === owner);
+        const open = ownerTasks.filter(t => !isResolved(t)).length;
+        return sum + Math.min(140, open * 40);
+      }, 0) / owners.length);
+      $('dUtilization').textContent = `~${avgUtil}% indicative`;
+    } else {
+      $('dUtilization').textContent = '—';
+    }
+
+    $('dMeta').textContent = node.description || '-';
+    renderBreadcrumbs(namePath, idPath);
+
+    document.querySelectorAll('.gantt-row').forEach(r => {
+      const rowPath = (r.dataset.path || '').split('>');
+      const related = idPath.every((id, idx) => rowPath[idx] === id) || rowPath.every((id, idx) => idPath[idx] === id);
+      r.classList.toggle('dim', !related);
+      r.classList.toggle('focus-path', related);
+      r.classList.toggle('selected', r.dataset.id === node.id);
+    });
+
+    renderSummary(node);
+    renderResourceTables(node);
+    renderRiskTables(node);
+    revealAndScrollTo(node);
+    layoutConnectors();
+  }
+
+  function clearFocus(){
+    setFocus(treeData[0], [treeData[0].name], [treeData[0].id]);
+  }
+
+  /* ============ GANTT RENDER ============ */
+  let flatIndex = [];
+  function createRow(node, depth, parentNamePath, parentIdPath){
+    const wrap = document.createElement('div');
+    wrap.className = 'gantt-row-wrap' + (node.visible ? '' : ' hidden-filtered');
+    const row = document.createElement('div');
+    row.className = `gantt-row type-${node.type}`;
+    row.dataset.id = node.id;
+    const nodeIdPath = [...parentIdPath, node.id];
+    row.dataset.path = nodeIdPath.join('>');
+    node._pathIds = nodeIdPath;
+    const label = document.createElement('div');
+    label.className = 'gantt-row-label';
+    label.style.paddingLeft = (10 + depth * 16) + 'px';
+    const hasChildren = node.children && node.children.length;
+    const chipColor = node.type === 'project' ? 'indigo' : node.type === 'phase' ? 'emerald' : node.type === 'milestone' ? 'amber' : node.type === 'task' ? 'blue' : 'rose';
+    label.innerHTML = `<span class="gantt-toggle ${hasChildren ? '' : 'leaf'}">${hasChildren ? '▾' : ''}</span><span class="gantt-type-chip" style="background:var(--${chipColor})"></span><span class="gantt-row-name">${node.name}<small>${node.type.toUpperCase()} • ${node.user || '-'}</small></span>`;
+    const track = document.createElement('div');
+    track.className = 'gantt-row-track';
+    const width = Math.max(0.4, node.end - node.start);
+    const baseWidth = Math.max(0.2, node.baselineEnd - node.baselineStart);
+    const showBaseline = document.getElementById('baselineToggle').checked;
+    track.innerHTML = `<div class="gantt-bar-zone">
+      ${showBaseline ? `<div class="gantt-baseline" style="left:${node.baselineStart}%;width:${baseWidth}%"></div>` : ''}
+      <div class="gantt-outline bar-${node.type} ${healthClass(node)}" style="left:${node.start}%;width:${width}%">
+        <div class="gantt-fill bar-${node.type}" style="width:${Math.min(100, node.progress || 0)}%"></div>
+        <div class="gantt-fill-remain bar-${node.type}" style="width:${100 - Math.min(100, node.progress || 0)}%"></div>
+      </div>
+      <div class="gantt-pct" style="left:calc(${node.start + width}% + 8px)">${node.progress || 0}%</div>
+    </div>`;
+    row.appendChild(label); row.appendChild(track); wrap.appendChild(row);
+    row.addEventListener('mouseenter', e => showNodeTip(node, e.clientX, e.clientY));
+    row.addEventListener('mousemove', e => { tooltip.style.left = (e.clientX + 14) + 'px'; tooltip.style.top = (e.clientY + 14) + 'px'; });
+    row.addEventListener('mouseleave', hideTip);
+    row.addEventListener('click', e => {
+      if(e.target.closest('.gantt-toggle')) return;
+      setFocus(node, [...parentNamePath, node.name], nodeIdPath);
+    });
+    flatIndex.push({ node, trackEl: track });
+    if(hasChildren){
+      const children = document.createElement('div');
+      children.className = 'gantt-children';
+      node.children.forEach(c => children.appendChild(createRow(c, depth + 1, [...parentNamePath, node.name], nodeIdPath)));
+      wrap.appendChild(children);
+      label.querySelector('.gantt-toggle').addEventListener('click', e => {
+        e.stopPropagation();
+        wrap.classList.toggle('collapsed');
+        label.querySelector('.gantt-toggle').textContent = wrap.classList.contains('collapsed') ? '▸' : '▾';
+        layoutGantt();
+      });
+    }
+    return wrap;
+  }
+
+  function renderHeader(){
+    const months = document.getElementById('ganttMonths');
+    const weeks = document.getElementById('ganttWeeks');
+    months.innerHTML = ''; weeks.innerHTML = '';
+    let cursor = new Date(AXIS_START);
+    while(cursor < AXIS_END){
+      const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+      const segEnd = next < AXIS_END ? next : AXIS_END;
+      const w = ((segEnd - cursor) / (AXIS_END - AXIS_START)) * 100;
+      const dEl = document.createElement('div');
+      dEl.className = 'gantt-month';
+      dEl.style.width = w + '%';
+      dEl.textContent = cursor.toLocaleDateString('en-US', { month:'short' });
+      months.appendChild(dEl);
+      cursor = next;
+    }
+    for(let dt = new Date(AXIS_START); dt <= AXIS_END; dt = new Date(dt.getTime() + 7 * MS_DAY)){
+      const left = ((dt - AXIS_START) / (AXIS_END - AXIS_START)) * 100;
+      const tick = document.createElement('div');
+      tick.className = 'gantt-week-tick';
+      tick.style.left = left + '%';
+      tick.innerHTML = `<span>${(dt.getMonth()+1)}/${dt.getDate()}</span>`;
+      weeks.appendChild(tick);
+    }
+  }
+
+  function isOnFocusPath(nodeIdPath){
+    if(!currentIdPath || !nodeIdPath) return true;
+    return currentIdPath.every((id, idx) => nodeIdPath[idx] === id) || nodeIdPath.every((id, idx) => currentIdPath[idx] === id);
+  }
+
+  function layoutConnectors(){
+    const svg = document.getElementById('ganttDeps');
+    svg.querySelectorAll('path').forEach(p => p.remove());
+    if(!document.getElementById('depsToggle').checked) return;
+    const overlay = document.getElementById('ganttOverlay').getBoundingClientRect();
+    const deepFocus = currentIdPath && currentIdPath.length > 1;
+    flatIndex.forEach(item => {
+      if(!item.node.parent || !item.node.visible || !item.node.parent.visible) return;
+      const parent = flatIndex.find(f => f.node === item.node.parent);
+      if(!parent) return;
+      const cRect = item.trackEl.querySelector('.gantt-outline')?.getBoundingClientRect();
+      const pRect = parent.trackEl.querySelector('.gantt-outline')?.getBoundingClientRect();
+      if(!cRect || !pRect || cRect.width === 0) return;
+      const x1 = pRect.left - overlay.left, y1 = pRect.top - overlay.top + pRect.height/2;
+      const x2 = cRect.left - overlay.left - 4, y2 = cRect.top - overlay.top + cRect.height/2;
+      const mid = x1 > 16 ? x1 - 14 : x1 + 14;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`);
+
+      const related = isOnFocusPath(item.node._pathIds);
+      let cls = 'gantt-conn';
+      if(!related){ cls += ' faded-conn'; }
+      else {
+        if(item.node.status === 'Blocked') cls += ' blocked';
+        else if(item.node.isOverdue) cls += ' critical';
+        if(deepFocus) cls += ' focused';
+      }
+      path.setAttribute('class', cls);
+      path.setAttribute('marker-end', item.node.isOverdue ? 'url(#arrowRed)' : 'url(#arrowGray)');
+      svg.appendChild(path);
+    });
+  }
+
+  function layoutToday(){
+    const line = document.getElementById('ganttToday');
+    if(!document.getElementById('todayToggle').checked){ line.style.display = 'none'; return; }
+    const pct = ((TODAY - AXIS_START) / (AXIS_END - AXIS_START)) * 100;
+    if(pct < 0 || pct > 100){ line.style.display = 'none'; return; }
+    line.style.display = 'block';
+    line.style.left = pct + '%';
+    line.style.height = document.getElementById('ganttBody').scrollHeight + 'px';
+  }
+
+  function computeTimelineWidth(){
+    const scrollEl = document.getElementById('ganttScroll');
+    const available = Math.max(scrollEl.clientWidth - LABEL_W, 300);
+    const desired = TOTAL_DAYS * ZOOM_PX_PER_DAY[currentZoom];
+    return Math.max(desired, available);
+  }
+
+  function layoutGantt(){
+    const trackW = computeTimelineWidth();
+    document.getElementById('ganttInner').style.width = (LABEL_W + trackW) + 'px';
+    renderHeader();
+    requestAnimationFrame(() => { layoutToday(); layoutConnectors(); });
+  }
+
+  function renderTree(){
+    computeVisible(treeData[0]);
+    flatIndex = [];
+    const body = document.getElementById('ganttBody');
+    body.querySelectorAll('.gantt-row-wrap').forEach(n => n.remove());
+    const frag = document.createDocumentFragment();
+    treeData.forEach(root => frag.appendChild(createRow(root, 0, [], [])));
+    body.appendChild(frag);
+    layoutGantt();
+    if(currentIdPath){
+      const selectedId = currentIdPath[currentIdPath.length - 1];
+      document.querySelectorAll('.gantt-row').forEach(r => {
+        const rowPath = (r.dataset.path || '').split('>');
+        const related = currentIdPath.every((id, idx) => rowPath[idx] === id) || rowPath.every((id, idx) => currentIdPath[idx] === id);
+        r.classList.toggle('dim', !related);
+        r.classList.toggle('focus-path', related);
+        r.classList.toggle('selected', r.dataset.id === selectedId);
+      });
+    }
+  }
+
+  function flagFor(item){
+    if(item.isOverdue) return { rank:0, badge:'<span class="badge red">Overdue</span>' };
+    if(item.isSoonOverdue) return { rank:1, badge:'<span class="badge amber">Due Soon</span>' };
+    if(isResolved(item)) return { rank:3, badge:'<span class="badge green">Completed</span>' };
+    return { rank:2, badge:'<span class="badge blue">On Track</span>' };
+  }
+
+  function triggerTab(tab){
+    document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.getElementById('analytics-section').classList.toggle('active', tab === 'analytics');
+    document.getElementById('module-section').classList.toggle('active', tab !== 'analytics');
+    if(tab !== 'analytics'){
+      const items = collect(tab).map(i => ({ item:i, flag:flagFor(i) }));
+      items.sort((a,b) => a.flag.rank - b.flag.rank || (b.item.varianceDays || 0) - (a.item.varianceDays || 0));
+      document.getElementById('module-title').textContent = tab.toUpperCase() + ' Module Deep Dive';
+      document.getElementById('module-subtitle').textContent = `All ${items.length} ${tab}${items.length === 1 ? '' : 's'} in this module, most urgent first.`;
+      document.querySelector('#module-table tbody').innerHTML = items.map(({item:i, flag}) =>
+        `<tr><td>${flag.badge}</td><td>${i.id}</td><td>${i.name}</td><td>${i.status}</td><td>${i.priority || '-'}</td><td>${i.varianceDays || 0}d</td><td>${i.description || '-'}</td></tr>`
+      ).join('') || '<tr><td colspan="7" class="muted">No items in this module.</td></tr>';
+    }
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+
+  /* ============ INIT + EVENTS ============ */
+  renderTree();
+  setFocus(treeData[0], [treeData[0].name], [treeData[0].id]);
+
+  document.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => triggerTab(t.dataset.tab)));
+
+  document.querySelectorAll('#quickFilters .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#quickFilters .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      quickFilter = chip.dataset.filter;
+      renderTree();
+    });
+  });
+  document.getElementById('searchBox').addEventListener('input', e => { searchTerm = e.target.value.toLowerCase(); renderTree(); });
+  document.getElementById('typeFilter').addEventListener('change', e => { typeFilterVal = e.target.value; renderTree(); });
+  document.getElementById('priorityFilter').addEventListener('change', e => { priorityFilterVal = e.target.value; renderTree(); });
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    quickFilter = 'all'; typeFilterVal = 'all'; priorityFilterVal = 'all'; searchTerm = '';
+    document.querySelectorAll('#quickFilters .chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'all'));
+    document.getElementById('searchBox').value = '';
+    document.getElementById('typeFilter').value = 'all';
+    document.getElementById('priorityFilter').value = 'all';
+    renderTree();
+    clearFocus();
+  });
+  ['baselineToggle','depsToggle','todayToggle'].forEach(id => document.getElementById(id).addEventListener('change', renderTree));
+
+  document.querySelectorAll('.zoom-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.zoom-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentZoom = btn.dataset.zoom;
+      layoutGantt();
+    });
+  });
+  document.getElementById('expandAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('.gantt-row-wrap.collapsed').forEach(w => {
+      w.classList.remove('collapsed');
+      const t = w.querySelector(':scope > .gantt-row .gantt-toggle');
+      if(t) t.textContent = '▾';
+    });
+    layoutGantt();
+  });
+  document.getElementById('collapseAllBtn').addEventListener('click', () => {
+    document.querySelectorAll('.gantt-row-wrap').forEach(w => {
+      if(w.querySelector(':scope > .gantt-children')){
+        w.classList.add('collapsed');
+        const t = w.querySelector(':scope > .gantt-row .gantt-toggle');
+        if(t) t.textContent = '▸';
+      }
+    });
+    layoutGantt();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const dd = document.getElementById('exportDropdown');
+    dd.style.display = dd.style.display === 'block' ? 'none' : 'block';
+  });
+  document.querySelectorAll('.export-dropdown button').forEach(btn => btn.addEventListener('click', () => {
+    document.getElementById('exportDropdown').style.display = 'none';
+    showToast(`Preparing ${btn.dataset.fmt} export…`);
+  }));
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.export-menu')) document.getElementById('exportDropdown').style.display = 'none';
+  });
+
+  document.addEventListener('click', e => {
+    if(!e.target.closest('.gantt-row') && !e.target.closest('.detail') && !e.target.closest('.chip-row') && !e.target.closest('.gantt-toolbar') && !e.target.closest('.export-menu')){
+      clearFocus();
+    }
+  });
+
+  window.addEventListener('resize', () => layoutGantt());
+</script>
+</body>
+</html>
