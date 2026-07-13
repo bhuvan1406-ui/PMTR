@@ -1,0 +1,43 @@
+Devin
+
+
+1. Slot based option to be removed for unplanned events. Grey out slot based if they choose unplanned type first or if they choose slot based first then don't show unplanned types in drop down.
+
+
+2. End date for unplanned events should be asked only during closure, also email changes.
+
+
+3. Replace edit icon with clone icon if event or booking is closed or cancelled in both manage pages and inside object.
+
+
+4. When clone, populate key details and load create event or booking form rather than creating the id first.
+
+
+5. Caused by partner label change. 
+
+
+6. Reduce font size to 0.65vw for all fonts inside emvmgmt and title to 1 rem or less, reduce row height in table and pagination to show 15 records. Reduce tile height as well.
+
+
+7. Make event type changes for unplanned in bcr form and test, then do ui changes. 
+
+
+8. Replace BCR form icon to Jira icon in main page.
+
+
+9. Show the text in exception dashboard when the snapshot will be taken daily so user can try to address before that. 
+
+
+10. Show tooltip on overdue mat chips to indicate what's the actual scenario for overdue.
+
+
+11. Show when Udeploy and Harness feed in fetched in Deployed version dashboard.
+
+
+12. Give all Citi members to /view of events, bookings and projects. 
+
+
+13. + Button in the manage forms to have circle in blue and + in white. 
+
+
+14. View group all chip to have same color.
